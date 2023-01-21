@@ -8,6 +8,7 @@ use serenity::futures::StreamExt;
 use serenity::model::application::command::Command;
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
 use serenity::model::gateway::Ready;
+use serenity::model::guild::{ScheduledEvent, ScheduledEventStatus};
 use serenity::model::id::{ChannelId, GuildId};
 use serenity::prelude::{GatewayIntents, TypeMapKey};
 use serenity::{async_trait, Client};
@@ -17,6 +18,8 @@ use commands_macro::{register_commands, run_commands};
 
 mod commands;
 mod markov;
+
+const EVENT_REPORT_CHANNEL: ChannelId = ChannelId(924343631761006592);
 
 impl TypeMapKey for Markov {
     type Value = Arc<Markov>;
@@ -98,14 +101,119 @@ impl EventHandler for Handler {
             }
         }
     }
+
+    async fn guild_scheduled_event_create(&self, ctx: Context, event: ScheduledEvent) {
+        let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
+            Some(val) => val.guild_id,
+            None => {
+                eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
+                return;
+            }
+        };
+        if event.guild_id != report_channel_guild_id {
+            return;
+        }
+
+        if let Err(err) = EVENT_REPORT_CHANNEL
+            .send_message(&ctx, |message| {
+                message.content(
+                    String::from("Event **")
+                        + &event.name
+                        + "** created, scheduled for <t:"
+                        + &event.start_time.unix_timestamp().to_string()
+                        + ">.",
+                )
+            })
+            .await
+        {
+            eprintln!("error sending scheduled event creation report message: {err}");
+        }
+    }
+
+    async fn guild_scheduled_event_update(&self, ctx: Context, event: ScheduledEvent) {
+        let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
+            Some(val) => val.guild_id,
+            None => {
+                eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
+                return;
+            }
+        };
+        if event.guild_id != report_channel_guild_id {
+            return;
+        }
+
+        match event.status {
+            ScheduledEventStatus::Scheduled => {
+                if let Err(err) = EVENT_REPORT_CHANNEL
+                    .send_message(&ctx, |message| {
+                        message.content(
+                            String::from("Event **")
+                                + &event.name
+                                + "** updated (scheduled for <t:"
+                                + &event.start_time.unix_timestamp().to_string()
+                                + ">).",
+                        )
+                    })
+                    .await
+                {
+                    eprintln!("error sending scheduled event update report message: {err}");
+                }
+            }
+            ScheduledEventStatus::Active => {
+                if let Err(err) = EVENT_REPORT_CHANNEL
+                    .send_message(&ctx, |message| {
+                        message.content(
+                            String::from("Event **")
+                                + &event.name
+                                + "** has started! <@&816024905061367829>",
+                        )
+                    })
+                    .await
+                {
+                    eprintln!("error sending scheduled event update report message: {err}");
+                }
+            }
+            _ => (),
+        }
+    }
+
+    async fn guild_scheduled_event_delete(&self, ctx: Context, event: ScheduledEvent) {
+        let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
+            Some(val) => val.guild_id,
+            None => {
+                eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
+                return;
+            }
+        };
+        if event.guild_id != report_channel_guild_id {
+            return;
+        }
+
+        if let Err(err) = EVENT_REPORT_CHANNEL
+            .send_message(&ctx, |message| {
+                message.content(
+                    String::from("Event **")
+                        + &event.name
+                        + "** was **cancelled** (previously scheduled for <t:"
+                        + &event.start_time.unix_timestamp().to_string()
+                        + ">).",
+                )
+            })
+            .await
+        {
+            eprintln!("error sending scheduled event deletion report message: {err}");
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("could not get discord token");
 
-    let intents =
-        GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
+    let intents = GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_SCHEDULED_EVENTS;
 
     let mut client = Client::builder(token, intents)
         .event_handler(Handler {
