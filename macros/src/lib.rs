@@ -13,7 +13,7 @@ use std::{fs, io};
 pub fn register_commands(_: TokenStream) -> TokenStream {
     let mut out = String::from("fn register_commands(commands: &mut serenity::builder::CreateApplicationCommands) -> &mut serenity::builder::CreateApplicationCommands {\n");
     for command in read_modules("src/commands").expect("error reading command directory") {
-        out += "commands.create_application_command(|command| commands::";
+        out += "commands.create_application_command(|command| crate::commands::";
         out += &command;
         out += "::register(command));\n";
     }
@@ -34,7 +34,7 @@ pub fn run_commands(_: TokenStream) -> TokenStream {
     for command in read_modules("src/commands").expect("error reading command directory") {
         out += "\"";
         out += &command;
-        out += "\" => commands::";
+        out += "\" => crate::commands::";
         out += &(command + "::run(&command.data.options),\n");
     }
     out += "_ => \"not implemented\".to_string(),\n";

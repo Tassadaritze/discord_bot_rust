@@ -1,208 +1,53 @@
 use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use std::time::Duration;
 
 use serenity::client::{Context, EventHandler};
-use serenity::futures::StreamExt;
-use serenity::model::application::command::Command;
-use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+use serenity::model::application::interaction::Interaction;
 use serenity::model::gateway::Ready;
-use serenity::model::guild::{ScheduledEvent, ScheduledEventStatus};
-use serenity::model::id::{ChannelId, GuildId};
+use serenity::model::guild::ScheduledEvent;
+use serenity::model::id::GuildId;
 use serenity::prelude::{GatewayIntents, TypeMapKey};
 use serenity::{async_trait, Client};
 
 use crate::markov::Markov;
-use macros::{register_commands, run_commands};
 
 mod commands;
+mod events;
 mod markov;
-
-const EVENT_REPORT_CHANNEL: ChannelId = ChannelId(924343631761006592);
 
 impl TypeMapKey for Markov {
     type Value = Arc<Markov>;
 }
 
-struct Handler {
+pub struct Handler {
     is_loop_running: AtomicBool,
 }
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
-        let ctx = Arc::new(ctx);
-
-        if !self.is_loop_running.load(Ordering::Relaxed) {
-            let ctx = Arc::clone(&ctx);
-            tokio::spawn(async move {
-                loop {
-                    tokio::time::sleep(Duration::from_secs(3600)).await;
-                    {
-                        let ctx = Arc::clone(&ctx);
-                        let last_message = ChannelId(464502359372857355)
-                            .messages_iter(&ctx.http)
-                            .boxed()
-                            .next()
-                            .await;
-                        if let Some(result) = last_message {
-                            match result {
-                                Ok(message) => {
-                                    if message.author.id != ctx.cache.current_user().id {
-                                        let data = ctx.data.read().await;
-                                        let markov = data
-                                            .get::<Markov>()
-                                            .expect("couldn't get Markov from client data");
-                                        let generated_message = markov.generate_string().await;
-                                        ChannelId(464502359372857355)
-                                            .send_message(&ctx.http, |message| {
-                                                message.content(generated_message)
-                                            })
-                                            .await
-                                            .expect("couldn't send message");
-                                    }
-                                }
-                                Err(err) => eprintln!("error getting message: {err}"),
-                            }
-                        }
-                    }
-                }
-            });
-
-            self.is_loop_running.swap(true, Ordering::Relaxed);
-        }
+    async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
+        events::cache_ready::handle(self, ctx, guilds).await;
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
-        register_commands!();
-        Command::set_global_application_commands(&ctx.http, register_commands)
-            .await
-            .expect("error setting global commands");
-
-        println!("{} online!", ready.user.name);
+        events::ready::handle(self, ctx, ready).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
-            println!("Received command interaction: {:#?}", command);
-
-            let content = run_commands!();
-
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| message.content(content))
-                })
-                .await
-            {
-                println!("Cannot respond to slash command: {}", why);
-            }
-        }
+        events::interaction_create::handle(self, ctx, interaction).await;
     }
 
     async fn guild_scheduled_event_create(&self, ctx: Context, event: ScheduledEvent) {
-        let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
-            Some(val) => val.guild_id,
-            None => {
-                eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
-                return;
-            }
-        };
-        if event.guild_id != report_channel_guild_id {
-            return;
-        }
-
-        if let Err(err) = EVENT_REPORT_CHANNEL
-            .send_message(&ctx, |message| {
-                message.content(
-                    String::from("Event **")
-                        + &event.name
-                        + "** created, scheduled for <t:"
-                        + &event.start_time.unix_timestamp().to_string()
-                        + ">.",
-                )
-            })
-            .await
-        {
-            eprintln!("error sending scheduled event creation report message: {err}");
-        }
+        events::guild_scheduled_event_create::handle(self, ctx, event).await;
     }
 
     async fn guild_scheduled_event_update(&self, ctx: Context, event: ScheduledEvent) {
-        let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
-            Some(val) => val.guild_id,
-            None => {
-                eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
-                return;
-            }
-        };
-        if event.guild_id != report_channel_guild_id {
-            return;
-        }
-
-        match event.status {
-            ScheduledEventStatus::Scheduled => {
-                if let Err(err) = EVENT_REPORT_CHANNEL
-                    .send_message(&ctx, |message| {
-                        message.content(
-                            String::from("Event **")
-                                + &event.name
-                                + "** updated (scheduled for <t:"
-                                + &event.start_time.unix_timestamp().to_string()
-                                + ">).",
-                        )
-                    })
-                    .await
-                {
-                    eprintln!("error sending scheduled event update report message: {err}");
-                }
-            }
-            ScheduledEventStatus::Active => {
-                if let Err(err) = EVENT_REPORT_CHANNEL
-                    .send_message(&ctx, |message| {
-                        message.content(
-                            String::from("Event **")
-                                + &event.name
-                                + "** has started! <@&816024905061367829>",
-                        )
-                    })
-                    .await
-                {
-                    eprintln!("error sending scheduled event update report message: {err}");
-                }
-            }
-            _ => (),
-        }
+        events::guild_scheduled_event_update::handle(self, ctx, event).await;
     }
 
     async fn guild_scheduled_event_delete(&self, ctx: Context, event: ScheduledEvent) {
-        let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
-            Some(val) => val.guild_id,
-            None => {
-                eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
-                return;
-            }
-        };
-        if event.guild_id != report_channel_guild_id {
-            return;
-        }
-
-        if let Err(err) = EVENT_REPORT_CHANNEL
-            .send_message(&ctx, |message| {
-                message.content(
-                    String::from("Event **")
-                        + &event.name
-                        + "** was **cancelled** (previously scheduled for <t:"
-                        + &event.start_time.unix_timestamp().to_string()
-                        + ">).",
-                )
-            })
-            .await
-        {
-            eprintln!("error sending scheduled event deletion report message: {err}");
-        }
+        events::guild_scheduled_event_delete::handle(self, ctx, event).await;
     }
 }
 
