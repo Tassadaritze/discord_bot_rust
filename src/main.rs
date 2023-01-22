@@ -9,6 +9,7 @@ use serenity::model::guild::ScheduledEvent;
 use serenity::model::id::GuildId;
 use serenity::prelude::{GatewayIntents, TypeMapKey};
 use serenity::{async_trait, Client};
+use serenity::model::channel::Message;
 
 use crate::markov::Markov;
 
@@ -28,6 +29,10 @@ pub struct Handler {
 impl EventHandler for Handler {
     async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         events::cache_ready::handle(self, ctx, guilds).await;
+    }
+
+    async fn message(&self, ctx: Context, new_message: Message) {
+        events::message::handle(self, ctx, new_message).await;
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
