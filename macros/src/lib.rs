@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 use std::io::ErrorKind;
+use std::path::Path;
 use std::{fs, io};
 
 // fn register_commands(commands: &mut serenity::builder::CreateApplicationCommands) -> &mut serenity::builder::CreateApplicationCommands {
@@ -11,7 +12,7 @@ use std::{fs, io};
 #[proc_macro]
 pub fn register_commands(_: TokenStream) -> TokenStream {
     let mut out = String::from("fn register_commands(commands: &mut serenity::builder::CreateApplicationCommands) -> &mut serenity::builder::CreateApplicationCommands {\n");
-    for command in read_commands().expect("error reading command directory") {
+    for command in read_modules("src/commands").expect("error reading command directory") {
         out += "commands.create_application_command(|command| commands::";
         out += &command;
         out += "::register(command));\n";
@@ -30,7 +31,7 @@ pub fn register_commands(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn run_commands(_: TokenStream) -> TokenStream {
     let mut out = String::from("match command.data.name.as_str() {");
-    for command in read_commands().expect("error reading command directory") {
+    for command in read_modules("src/commands").expect("error reading command directory") {
         out += "\"";
         out += &command;
         out += "\" => commands::";
@@ -46,20 +47,28 @@ pub fn run_commands(_: TokenStream) -> TokenStream {
 // pub mod bar;
 // ...etc
 #[proc_macro]
-pub fn command_modules(_: TokenStream) -> TokenStream {
+pub fn get_modules(input: TokenStream) -> TokenStream {
+    let path = input.to_string();
+    let path = Path::new(path.trim_matches('"'));
+
     let mut out = String::new();
-    for command in read_commands().expect("error reading command directory") {
-        out += "pub mod ";
-        out += &(command + ";\n");
+    if path.is_dir() {
+        for module in read_modules(path.to_str().unwrap()).expect("error reading command directory")
+        {
+            out += "pub mod ";
+            out += &(module + ";\n");
+        }
+    } else {
+        panic!("{:?} is not a valid directory", path);
     }
 
     out.parse().unwrap()
 }
 
-fn read_commands() -> io::Result<Vec<String>> {
-    let mut commands = Vec::new();
+fn read_modules(dir: &str) -> io::Result<Vec<String>> {
+    let mut modules = Vec::new();
 
-    for entry in fs::read_dir("src/commands")? {
+    for entry in fs::read_dir(dir)? {
         let file_name = entry?
             .file_name()
             .to_str()
@@ -69,8 +78,8 @@ fn read_commands() -> io::Result<Vec<String>> {
         if file_name == "mod" {
             continue;
         }
-        commands.push(file_name);
+        modules.push(file_name);
     }
 
-    Ok(commands)
+    Ok(modules)
 }

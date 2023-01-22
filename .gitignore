@@ -1,8 +1,9 @@
 /target
 /.idea
-/commands_macro/target
-/commands_macro/Cargo.lock
+/macros/target
+/macros/Cargo.lock
 
 /run.sh
+/debug.sh
 /markov_data
 /message-dump.txt

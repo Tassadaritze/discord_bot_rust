@@ -1,3 +1,3 @@
-use commands_macro::command_modules;
+use macros::get_modules;
 
-command_modules!();
+get_modules!("src/commands");

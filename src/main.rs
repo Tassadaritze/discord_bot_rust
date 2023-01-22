@@ -14,7 +14,7 @@ use serenity::prelude::{GatewayIntents, TypeMapKey};
 use serenity::{async_trait, Client};
 
 use crate::markov::Markov;
-use commands_macro::{register_commands, run_commands};
+use macros::{register_commands, run_commands};
 
 mod commands;
 mod markov;
