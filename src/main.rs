@@ -2,14 +2,15 @@ use std::env;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use log::error;
 use serenity::client::{Context, EventHandler};
 use serenity::model::application::interaction::Interaction;
+use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::model::guild::ScheduledEvent;
 use serenity::model::id::GuildId;
 use serenity::prelude::{GatewayIntents, TypeMapKey};
 use serenity::{async_trait, Client};
-use serenity::model::channel::Message;
 
 use crate::markov::Markov;
 
@@ -60,6 +61,8 @@ impl EventHandler for Handler {
 async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("could not get discord token");
 
+    env_logger::init();
+
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILDS
@@ -78,6 +81,6 @@ async fn main() {
     }
 
     if let Err(why) = client.start().await {
-        println!("client error: {:?}", why);
+        error!("client error: {:?}", why);
     }
 }

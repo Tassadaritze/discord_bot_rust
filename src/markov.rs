@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 
+use log::{error, info, warn};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 
@@ -19,17 +20,16 @@ impl Markov {
             if let Ok(val) = fs::read("markov_data") {
                 match rmp_serde::from_slice::<Markov>(&val) {
                     Ok(val) => {
-                        println!(
+                        info!(
                             "Markov data serialized in: {:?}",
                             std::time::Instant::now().duration_since(start_time)
                         );
                         if key_size != val.key_size {
-                            println!("Asked to construct a Markov instance with key_size {}, but imported one with {} instead.", key_size, val.key_size);
+                            warn!("Asked to construct a Markov instance with key_size {}, but imported one with {} instead.", key_size, val.key_size);
                         }
-                        dbg!(val.start_keys.len());
                         return val;
                     }
-                    Err(err) => eprintln!("couldn't serialize found markov data: {err}"),
+                    Err(err) => error!("couldn't serialize found markov data: {err}"),
                 }
             }
         }
@@ -60,7 +60,7 @@ impl Markov {
             }
         }
 
-        println!(
+        info!(
             "Markov data built in: {:?}",
             std::time::Instant::now().duration_since(start_time)
         );
@@ -74,9 +74,9 @@ impl Markov {
         match rmp_serde::to_vec(&markov) {
             Ok(val) => match fs::write("markov_data", val) {
                 Ok(_) => (),
-                Err(err) => eprintln!("couldn't write markov data: {err}"),
+                Err(err) => error!("couldn't write markov data: {err}"),
             },
-            Err(err) => eprintln!("couldn't serialize markov data: {err}"),
+            Err(err) => error!("couldn't serialize markov data: {err}"),
         };
 
         markov

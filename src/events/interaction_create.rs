@@ -1,3 +1,4 @@
+use log::error;
 use serenity::client::Context;
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
 
@@ -7,8 +8,6 @@ use crate::Handler;
 
 pub async fn handle(_: &Handler, ctx: Context, interaction: Interaction) {
     if let Interaction::ApplicationCommand(command) = interaction {
-        println!("Received command interaction: {:#?}", command);
-
         let content = run_commands!();
 
         if let Err(why) = command
@@ -19,7 +18,7 @@ pub async fn handle(_: &Handler, ctx: Context, interaction: Interaction) {
             })
             .await
         {
-            println!("Cannot respond to slash command: {}", why);
+            error!("Cannot respond to slash command: {}", why);
         }
     }
 }

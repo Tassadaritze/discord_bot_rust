@@ -1,3 +1,4 @@
+use log::error;
 use serenity::client::Context;
 use serenity::model::channel::Message;
 
@@ -14,17 +15,17 @@ pub async fn handle(_: &Handler, ctx: Context, new_message: Message) {
                     let markov = data.get::<Markov>();
                     match markov {
                         Some(markov) => reply = markov.generate_string().await,
-                        None => eprintln!("could not get Markov from client data"),
+                        None => error!("could not get Markov from client data"),
                     }
                 }
                 if !reply.is_empty() {
                     if let Err(err) = new_message.reply_ping(&ctx, reply).await {
-                        eprintln!("could not send reply to message {}: {err}", new_message.id);
+                        error!("could not send reply to message {}: {err}", new_message.id);
                     }
                 }
             }
         }
-        Err(err) => eprintln!(
+        Err(err) => error!(
             "could not check if message {} mentions me: {err}",
             new_message.id
         ),

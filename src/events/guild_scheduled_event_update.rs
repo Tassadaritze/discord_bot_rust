@@ -1,3 +1,4 @@
+use log::error;
 use serenity::client::Context;
 use serenity::model::guild::{ScheduledEvent, ScheduledEventStatus};
 
@@ -8,7 +9,7 @@ pub async fn handle(_: &Handler, ctx: Context, event: ScheduledEvent) {
     let report_channel_guild_id = match &ctx.cache.guild_channel(EVENT_REPORT_CHANNEL) {
         Some(val) => val.guild_id,
         None => {
-            eprintln!("could not get EVENT_REPORT_CHANNEL as guild channel");
+            error!("could not get EVENT_REPORT_CHANNEL as guild channel");
             return;
         }
     };
@@ -30,7 +31,7 @@ pub async fn handle(_: &Handler, ctx: Context, event: ScheduledEvent) {
                 })
                 .await
             {
-                eprintln!("error sending scheduled event update report message: {err}");
+                error!("error sending scheduled event update report message: {err}");
             }
         }
         ScheduledEventStatus::Active => {
@@ -44,7 +45,7 @@ pub async fn handle(_: &Handler, ctx: Context, event: ScheduledEvent) {
                 })
                 .await
             {
-                eprintln!("error sending scheduled event update report message: {err}");
+                error!("error sending scheduled event update report message: {err}");
             }
         }
         _ => (),

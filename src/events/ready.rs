@@ -1,3 +1,4 @@
+use log::info;
 use serenity::client::Context;
 use serenity::model::application::command::Command;
 use serenity::model::gateway::Ready;
@@ -13,5 +14,5 @@ pub async fn handle(_: &Handler, ctx: Context, ready: Ready) {
         .await
         .expect("error setting global commands");
 
-    println!("{} online!", ready.user.name);
+    info!("{} online!", ready.user.name);
 }

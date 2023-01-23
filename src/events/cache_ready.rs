@@ -2,6 +2,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+use log::error;
 use serenity::client::Context;
 use serenity::futures::StreamExt;
 use serenity::model::id::{ChannelId, GuildId};
@@ -41,7 +42,7 @@ pub async fn handle(handler: &Handler, ctx: Context, _guilds: Vec<GuildId>) {
                                         .expect("couldn't send message");
                                 }
                             }
-                            Err(err) => eprintln!("error getting message: {err}"),
+                            Err(err) => error!("error getting message: {err}"),
                         }
                     }
                 }
