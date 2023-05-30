@@ -6,6 +6,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use log::error;
 use poise::PrefixFrameworkOptions;
+use reqwest::Client as Reqwest;
 use serenity::prelude::*;
 
 use crate::markov::Markov;
@@ -21,6 +22,7 @@ type FrameworkContext<'a> = poise::FrameworkContext<'a, DataWrapper, Error>;
 pub struct Data {
     markov: Arc<Markov>,
     markov_loop_running: AtomicBool,
+    reqwest: Reqwest,
 }
 
 impl Deref for DataWrapper {
@@ -67,6 +69,7 @@ async fn main() {
                 Ok(DataWrapper(Arc::new(Data {
                     markov: Arc::new(Markov::new(2, "message-dump.txt", true)),
                     markov_loop_running: AtomicBool::new(false),
+                    reqwest: Reqwest::new(),
                 })))
             })
         },
