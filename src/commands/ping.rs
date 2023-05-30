@@ -1,10 +1,11 @@
-use serenity::builder::CreateApplicationCommand;
-use serenity::model::application::interaction::application_command::CommandDataOption;
+use anyhow::Result;
 
-pub fn run(_options: &[CommandDataOption]) -> String {
-    "pong!".to_string()
-}
+use crate::Context;
 
-pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-    command.name("ping").description("Responds with pong!")
+/// Replies with pong
+#[poise::command(slash_command)]
+pub async fn ping(ctx: Context<'_>) -> Result<()> {
+    ctx.say("pong!").await?;
+
+    Ok(())
 }

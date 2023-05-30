@@ -1,33 +1,18 @@
-use log::error;
+use anyhow::Result;
 use serenity::client::Context;
 use serenity::model::channel::Message;
 
-use crate::markov::Markov;
-use crate::Handler;
+use crate::FrameworkContext;
 
-pub async fn handle(_: &Handler, ctx: Context, new_message: Message) {
-    match new_message.mentions_me(&ctx).await {
-        Ok(does_mention) => {
-            if does_mention {
-                let mut reply: String = String::new();
-                {
-                    let data = ctx.data.read().await;
-                    let markov = data.get::<Markov>();
-                    match markov {
-                        Some(markov) => reply = markov.generate_string().await,
-                        None => error!("could not get Markov from client data"),
-                    }
-                }
-                if !reply.is_empty() {
-                    if let Err(err) = new_message.reply_ping(&ctx, reply).await {
-                        error!("could not send reply to message {}: {err}", new_message.id);
-                    }
-                }
-            }
-        }
-        Err(err) => error!(
-            "could not check if message {} mentions me: {err}",
-            new_message.id
-        ),
+pub async fn handle(
+    framework_ctx: FrameworkContext<'_>,
+    ctx: &Context,
+    new_message: &Message,
+) -> Result<()> {
+    if new_message.mentions_me(&ctx).await? {
+        let reply = framework_ctx.user_data.markov.generate_string().await;
+        new_message.reply_ping(&ctx, reply).await?;
     }
+
+    Ok(())
 }

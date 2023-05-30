@@ -1,7 +1,38 @@
-use serenity::model::id::ChannelId;
+use anyhow::Result;
+use serenity::all::{ChannelId, FullEvent};
 
-use macros::get_modules;
+use crate::FrameworkContext;
 
-get_modules!("src/events");
+mod cache_ready;
+mod guild_scheduled_event_create;
+mod guild_scheduled_event_delete;
+mod guild_scheduled_event_update;
+mod message;
+mod ready;
 
-const EVENT_REPORT_CHANNEL: ChannelId = ChannelId(924343631761006592);
+const EVENT_REPORT_CHANNEL: ChannelId = ChannelId::new(924343631761006592);
+
+pub async fn handle(framework_ctx: FrameworkContext<'_>, event: &FullEvent) -> Result<()> {
+    match event {
+        FullEvent::Ready {
+            ctx,
+            data_about_bot,
+        } => ready::handle(framework_ctx, ctx, data_about_bot).await,
+        FullEvent::CacheReady { ctx, guilds } => {
+            cache_ready::handle(framework_ctx, ctx, guilds).await
+        }
+        FullEvent::Message { ctx, new_message } => {
+            message::handle(framework_ctx, ctx, new_message).await
+        }
+        FullEvent::GuildScheduledEventCreate { ctx, event } => {
+            guild_scheduled_event_create::handle(framework_ctx, ctx, event).await
+        }
+        FullEvent::GuildScheduledEventDelete { ctx, event } => {
+            guild_scheduled_event_delete::handle(framework_ctx, ctx, event).await
+        }
+        FullEvent::GuildScheduledEventUpdate { ctx, event } => {
+            guild_scheduled_event_update::handle(framework_ctx, ctx, event).await
+        }
+        _ => Ok(()),
+    }
+}

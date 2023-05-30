@@ -1,43 +1,44 @@
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Result;
 use log::error;
+use serenity::all::CreateMessage;
 use serenity::client::Context;
 use serenity::futures::StreamExt;
 use serenity::model::id::{ChannelId, GuildId};
 
-use crate::markov::Markov;
-use crate::Handler;
+use crate::FrameworkContext;
 
-pub async fn handle(handler: &Handler, ctx: Context, _guilds: Vec<GuildId>) {
-    let ctx = Arc::new(ctx);
+pub async fn handle(
+    framework_ctx: FrameworkContext<'_>,
+    ctx: &Context,
+    _guilds: &[GuildId],
+) -> Result<()> {
+    let data = framework_ctx.user_data;
+    let cache = ctx.cache.clone();
+    let http = ctx.http.clone();
+    let markov = data.markov.clone();
 
-    if !handler.is_loop_running.load(Ordering::Relaxed) {
-        let ctx = Arc::clone(&ctx);
+    if !data.markov_loop_running.load(Ordering::Relaxed) {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(3600)).await;
                 {
-                    let ctx = Arc::clone(&ctx);
-                    let last_message = ChannelId(464502359372857355)
-                        .messages_iter(&ctx.http)
-                        .boxed()
-                        .next()
-                        .await;
+                    const MARKOV_CHANNEL: ChannelId = ChannelId::new(464502359372857355);
+                    let http = http.clone();
+
+                    let last_message = MARKOV_CHANNEL.messages_iter(&http).boxed().next().await;
                     if let Some(result) = last_message {
                         match result {
                             Ok(message) => {
-                                if message.author.id != ctx.cache.current_user().id {
-                                    let data = ctx.data.read().await;
-                                    let markov = data
-                                        .get::<Markov>()
-                                        .expect("couldn't get Markov from client data");
+                                if message.author.id != cache.current_user().id {
                                     let generated_message = markov.generate_string().await;
-                                    ChannelId(464502359372857355)
-                                        .send_message(&ctx.http, |message| {
-                                            message.content(generated_message)
-                                        })
+                                    MARKOV_CHANNEL
+                                        .send_message(
+                                            &http,
+                                            CreateMessage::new().content(generated_message),
+                                        )
                                         .await
                                         .expect("couldn't send message");
                                 }
@@ -49,6 +50,8 @@ pub async fn handle(handler: &Handler, ctx: Context, _guilds: Vec<GuildId>) {
             }
         });
 
-        handler.is_loop_running.swap(true, Ordering::Relaxed);
+        data.markov_loop_running.store(true, Ordering::Relaxed);
     }
+
+    Ok(())
 }

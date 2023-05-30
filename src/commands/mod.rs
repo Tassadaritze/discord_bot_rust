@@ -1,3 +1,10 @@
-use macros::get_modules;
+use anyhow::Error;
+use poise::Command;
 
-get_modules!("src/commands");
+use crate::DataWrapper;
+
+mod ping;
+
+pub fn commands() -> Vec<Command<DataWrapper, Error>> {
+    vec![ping::ping()]
+}
