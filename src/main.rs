@@ -56,6 +56,7 @@ async fn main() {
                 })
             },
             prefix_options: PrefixFrameworkOptions {
+                prefix: Some("~".to_string()),
                 mention_as_prefix: false,
                 ..PrefixFrameworkOptions::default()
             },
