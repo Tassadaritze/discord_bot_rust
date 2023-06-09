@@ -69,7 +69,7 @@ impl<'a> PostsAPI<'a> {
     fn new(tags: Option<String>) -> Result<Self, env::VarError> {
         // todo: SFW/NSFW switch
         let tags = match tags {
-            Some(tags) => tags.trim().to_string() + " sort:random rating:general",
+            Some(tags) => tags + " sort:random rating:general",
             None => "sort:random rating:general".to_string(),
         };
 
