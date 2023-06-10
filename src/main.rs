@@ -6,7 +6,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use log::error;
 use poise::PrefixFrameworkOptions;
-use reqwest::Client as Reqwest;
+use reqwest::{Client as Reqwest, ClientBuilder as ReqwestBuilder};
 use serenity::prelude::*;
 
 use crate::markov::Markov;
@@ -69,7 +69,7 @@ async fn main() {
                 Ok(DataWrapper(Arc::new(Data {
                     markov: Arc::new(Markov::new(2, "message-dump.txt", true)),
                     markov_loop_running: AtomicBool::new(false),
-                    reqwest: Reqwest::new(),
+                    reqwest: ReqwestBuilder::new().pool_max_idle_per_host(1).build()?,
                 })))
             })
         },
