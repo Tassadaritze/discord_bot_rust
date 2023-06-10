@@ -55,6 +55,16 @@ async fn main() {
             on_error: |e| {
                 Box::pin(async move {
                     error!("on_error: {e}");
+                    if let Some(ctx) = e.ctx() {
+                        if ctx.framework().options.commands.contains(ctx.command()) {
+                            if let Err(e) = ctx
+                                .say("An error occurred while executing this command.")
+                                .await
+                            {
+                                error!("could not reply in on_error: {e}");
+                            };
+                        }
+                    }
                 })
             },
             prefix_options: PrefixFrameworkOptions {
