@@ -5,7 +5,7 @@ use log::{error, info, warn};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Markov {
     data: HashMap<String, Vec<String>>,
     start_keys: Vec<String>,

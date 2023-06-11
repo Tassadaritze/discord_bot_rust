@@ -15,10 +15,12 @@ mod commands;
 mod events;
 mod markov;
 
+#[derive(Debug)]
 pub struct DataWrapper(Arc<Data>);
 type Context<'a> = poise::Context<'a, DataWrapper, Error>;
 type FrameworkContext<'a> = poise::FrameworkContext<'a, DataWrapper, Error>;
 
+#[derive(Debug)]
 pub struct Data {
     markov: Arc<Markov>,
     markov_loop_running: AtomicBool,
@@ -54,7 +56,7 @@ async fn main() {
             listener: |event, ctx, _| Box::pin(events::handle(ctx, event)),
             on_error: |e| {
                 Box::pin(async move {
-                    error!("on_error: {e}");
+                    error!("on_error: {:?}", e);
                     if let Some(ctx) = e.ctx() {
                         if ctx.framework().options.commands.contains(ctx.command()) {
                             if let Err(e) = ctx
