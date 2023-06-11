@@ -5,7 +5,6 @@ use anyhow::{Error, Result};
 use poise::CreateReply;
 use serde::Deserialize;
 use serenity::all::CreateAttachment;
-use serenity::http::CacheHttp;
 
 use crate::Context;
 
@@ -38,10 +37,17 @@ pub async fn gelbooru(
         .get(0)
         .ok_or_else(|| Error::msg("couldn't get post"))?;
 
+    let res = reqwest.get(&post.file_url).send().await?;
+    if let Some(len) = res.content_length() {
+        if len > _25_MIB {
+            return Err(Error::msg("post too large"));
+        }
+    }
+
     ctx.send(
         CreateReply::new()
             .content(format!("**{}:**", tags.unwrap_or("random".to_string())))
-            .attachment(CreateAttachment::url(ctx.http(), &post.file_url).await?),
+            .attachment(CreateAttachment::bytes(res.bytes().await?, &post.image)),
     )
     .await?;
 
@@ -51,6 +57,7 @@ pub async fn gelbooru(
 #[derive(Deserialize, Debug)]
 struct Post {
     file_url: String,
+    image: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -58,6 +65,7 @@ struct Response {
     post: Vec<Post>,
 }
 
+const _25_MIB: u64 = 25 * 1_024 * 1_024;
 const GELBOORU_API_POSTS: &str = "https://gelbooru.com/index.php";
 
 struct PostsAPI<'a> {
