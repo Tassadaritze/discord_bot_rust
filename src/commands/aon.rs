@@ -25,7 +25,10 @@ pub async fn aon(
         .get(env::var("SEARCH_URL")?)
         .query(&[
             ("format", "json"),
-            ("q", &("site:aonprd.com ".to_string() + &query)),
+            (
+                "q",
+                &("site:aonprd.com -site:2e.aonprd.com ".to_string() + &query),
+            ),
         ])
         .send()
         .await?
