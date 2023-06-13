@@ -1,6 +1,7 @@
 /target
 /.idea
 
+/.env
 /run.sh
 /debug.sh
 /markov_data
