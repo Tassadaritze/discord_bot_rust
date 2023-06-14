@@ -2,11 +2,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Error, Result};
 use poise::CreateReply;
+use serenity::all::Context as SerenityContext;
 use serenity::all::{
-    CacheHttp, Colour, ComponentInteraction, CreateActionRow, CreateButton, CreateEmbed, UserId,
-};
-use serenity::all::{
-    Context as SerenityContext, CreateInteractionResponse, CreateInteractionResponseMessage,
+    CacheHttp, Colour, ComponentInteraction, CreateActionRow, CreateButton, CreateEmbed,
+    EditInteractionResponse, UserId,
 };
 use sqlx::{query, query_as, SqlitePool};
 
@@ -244,31 +243,23 @@ pub async fn on_collect(
         .execute(&sqlite)
         .await?;
         interaction
-            .create_response(
+            .edit_response(
                 &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .ephemeral(true)
-                        .content(format!(
-                            "Shares collected! You now have {}🩸 shares.",
-                            shares.shares
-                        )),
-                ),
+                EditInteractionResponse::new().content(format!(
+                    "Shares collected! You now have {}🩸 shares.",
+                    shares.shares
+                )),
             )
             .await?;
     } else {
         interaction
-            .create_response(
+            .edit_response(
                 &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .ephemeral(true)
-                        .content(format!(
-                            "You cannot collect shares right now. \
+                EditInteractionResponse::new().content(format!(
+                    "You cannot collect shares right now. \
                     You can collect shares <t:{}:R>.",
-                            shares.collection_time.unwrap() + Shares::COLLECTION_COOLDOWN
-                        )),
-                ),
+                    shares.collection_time.unwrap() + Shares::COLLECTION_COOLDOWN
+                )),
             )
             .await?;
     }
@@ -305,31 +296,23 @@ pub async fn on_buy_generator(
         .execute(&sqlite)
         .await?;
         interaction
-            .create_response(
+            .edit_response(
                 &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .ephemeral(true)
-                        .content(format!(
-                            "Generator purchased! You now have {}🩸 shares.",
-                            shares.shares
-                        )),
-                ),
+                EditInteractionResponse::new().content(format!(
+                    "Generator purchased! You now have {}🩸 shares.",
+                    shares.shares
+                )),
             )
             .await?;
     } else {
         interaction
-            .create_response(
+            .edit_response(
                 &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .ephemeral(true)
-                        .content(format!(
-                            "You cannot afford another generator right now. \
+                EditInteractionResponse::new().content(format!(
+                    "You cannot afford another generator right now. \
                     You have {}🩸 shares and your next generator costs {}🩸.",
-                            shares.shares, cost
-                        )),
-                ),
+                    shares.shares, cost
+                )),
             )
             .await?;
     }
