@@ -15,7 +15,7 @@ mod aon;
 mod gelbooru;
 mod ping;
 mod register;
-mod shares;
+pub mod shares;
 
 pub fn commands() -> Vec<Command<DataWrapper, Error>> {
     vec![ping(), _8ball(), register(), gelbooru(), aon(), shares()]

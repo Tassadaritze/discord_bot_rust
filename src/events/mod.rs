@@ -7,6 +7,7 @@ mod cache_ready;
 mod guild_scheduled_event_create;
 mod guild_scheduled_event_delete;
 mod guild_scheduled_event_update;
+mod interaction_create;
 mod message;
 mod ready;
 
@@ -32,6 +33,9 @@ pub async fn handle(framework_ctx: FrameworkContext<'_>, event: &FullEvent) -> R
         }
         FullEvent::GuildScheduledEventUpdate { ctx, event } => {
             guild_scheduled_event_update::handle(framework_ctx, ctx, event).await
+        }
+        FullEvent::InteractionCreate { ctx, interaction } => {
+            interaction_create::handle(framework_ctx, ctx, interaction).await
         }
         _ => Ok(()),
     }
