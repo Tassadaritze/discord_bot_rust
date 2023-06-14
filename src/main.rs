@@ -3,11 +3,13 @@ use std::ops::Deref;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use anyhow::Error;
+use anyhow::{Error, Result};
 use log::error;
 use poise::PrefixFrameworkOptions;
 use reqwest::{Client as Reqwest, ClientBuilder as ReqwestBuilder};
 use serenity::prelude::*;
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::SqlitePool;
 
 use crate::markov::Markov;
 
@@ -25,6 +27,7 @@ pub struct Data {
     markov: Arc<Markov>,
     markov_loop_running: AtomicBool,
     reqwest: Reqwest,
+    sqlite: SqlitePool,
 }
 
 impl Deref for DataWrapper {
@@ -40,7 +43,7 @@ impl TypeMapKey for Markov {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     env_logger::init();
 
     let token = env::var("DISCORD_TOKEN").expect("could not get discord token");
@@ -82,6 +85,10 @@ async fn main() {
                     markov: Arc::new(Markov::new(2, "message-dump.txt", true)),
                     markov_loop_running: AtomicBool::new(false),
                     reqwest: ReqwestBuilder::new().pool_max_idle_per_host(1).build()?,
+                    sqlite: SqlitePoolOptions::new()
+                        .max_connections(1)
+                        .connect("sqlite:sqlite3.db")
+                        .await?,
                 })))
             })
         },
@@ -95,4 +102,6 @@ async fn main() {
     if let Err(why) = client.start().await {
         error!("client error: {:?}", why);
     }
+
+    Ok(())
 }
