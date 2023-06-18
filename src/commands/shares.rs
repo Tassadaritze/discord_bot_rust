@@ -174,13 +174,14 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<()> {
 
     ctx.defer().await?;
 
-    let mut shares_vec = query_as!(Shares, "SELECT * FROM share ORDER BY shares DESC")
+    let mut shares_vec = query_as!(Shares, "SELECT * FROM share")
         .fetch_all(&sqlite)
         .await?;
 
     for shares in shares_vec.iter_mut() {
         shares.update(&sqlite).await?;
     }
+    shares_vec.sort_unstable_by(|a, b| b.shares.partial_cmp(&a.shares).unwrap());
 
     let mut fields: Vec<(String, String, bool)> = vec![];
     for (i, shares) in shares_vec.iter().take(10).enumerate() {
