@@ -44,9 +44,20 @@ pub async fn gelbooru(
         }
     }
 
+    let tags = match tags {
+        Some(tags) => {
+            if tags.contains('_') {
+                tags.replace('_', r"\_")
+            } else {
+                tags
+            }
+        }
+        None => "random".to_string(),
+    };
+
     ctx.send(
         CreateReply::new()
-            .content(format!("**{}:**", tags.unwrap_or("random".to_string())))
+            .content(format!("**{}:**", tags))
             .attachment(CreateAttachment::bytes(res.bytes().await?, &post.image)),
     )
     .await?;
