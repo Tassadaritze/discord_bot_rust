@@ -241,7 +241,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<()> {
             .unwrap_or(user.name);
         fields.push((
             format!(
-                "{}. {} | {}🩸 | {}🏭 | {}🔄",
+                "{}. {} | {:.3}🩸 | {}🏭 | {}🔄",
                 i + 1,
                 user_name,
                 shares.shares,
