@@ -14,7 +14,7 @@ env_logger = "0.10"
 log = "0.4"
 anyhow = "1"
 reqwest = { version = "0.11", features = ["json"] }
-sqlx = { version = "0.6", default-features = false, features = ["postgres", "runtime-tokio-rustls", "macros", "chrono"]  }
+sqlx = { version = "0.6", default-features = false, features = ["postgres", "runtime-tokio-rustls", "macros", "chrono", "bit-vec"]  }
 chrono = { version = "0.4", features = ["clock"] }
 
 [dependencies.serenity]

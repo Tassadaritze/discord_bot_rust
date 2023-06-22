@@ -3,23 +3,32 @@ use chrono::{DateTime, Duration, Utc};
 use poise::CreateReply;
 use serenity::all::Context as SerenityContext;
 use serenity::all::{
-    CacheHttp, Colour, ComponentInteraction, CreateActionRow, CreateButton, CreateEmbed,
-    EditInteractionResponse, UserId,
+    ButtonStyle, CacheHttp, Colour, ComponentInteraction, CreateActionRow, CreateButton,
+    CreateEmbed, EditInteractionResponse, UserId,
 };
+use sqlx::types::BitVec;
 use sqlx::{query, query_as, PgPool};
 
+use crate::commands::shares::perks::{FromName, PERKS};
 use crate::{Context, FrameworkContext};
+
+pub mod perks;
 
 pub const COLLECT_BUTTON: &str = "collect";
 pub const BUY_GENERATOR_BUTTON: &str = "buy_generator";
+pub const PRESTIGE_BUTTON: &str = "prestige";
+pub const PRESTIGE_CONFIRM_BUTTON: &str = "prestige_confirm";
 
 #[derive(Debug)]
 struct Shares {
     user_id: i64,
     shares: f32,
     generators: i32,
+    prestige_points: i32,
+    prestige_count: i32,
     collection_time: Option<DateTime<Utc>>,
     generation_time: DateTime<Utc>,
+    perks: BitVec,
 }
 
 impl Shares {
@@ -37,7 +46,36 @@ impl Shares {
 
     /// Get the amount of shares it would take to make another generator.
     fn next_generator_cost(&self) -> f32 {
-        2_f32.powi(self.generators)
+        if self.perks[PERKS.world_is_mine()] {
+            1.6_f32.powi(self.generators)
+        } else {
+            2_f32.powi(self.generators)
+        }
+    }
+
+    /// Get the amount of shares it would take to perform a prestige reset.
+    fn next_prestige_cost(&self) -> f32 {
+        10_f32.powi(self.prestige_count + 2)
+    }
+
+    /// Get the generator production multiplier from perks.
+    fn generator_multiplier(&self) -> f32 {
+        let prism_multi = if self.perks[PERKS.prism_cube()] && self.shares > 10. {
+            self.shares.log10()
+        } else {
+            1.
+        };
+        let spiral_multi = if self.perks[PERKS.spiral()] {
+            1.1_f32.powi(self.generators)
+        } else {
+            1.
+        };
+        let dance_multi = if self.perks[PERKS.dance_robot_dance()] {
+            4.
+        } else {
+            1.
+        };
+        prism_multi * spiral_multi * dance_multi
     }
 
     /// Whether or not shares can be collected right now.
@@ -54,6 +92,11 @@ impl Shares {
         self.shares >= self.next_generator_cost()
     }
 
+    /// Whether or not a prestige reset can be performed.
+    fn can_prestige(&self) -> bool {
+        self.shares >= self.next_prestige_cost()
+    }
+
     /// Tick generators if enough time has passed.
     async fn update(&mut self, postgres: &PgPool) -> Result<()> {
         let ticks =
@@ -63,7 +106,7 @@ impl Shares {
             return Ok(());
         } else {
             self.generation_time += Duration::seconds((Self::COLLECTION_COOLDOWN * ticks) as i64);
-            self.shares += (self.generators * ticks) as f32;
+            self.shares += (self.generators * ticks) as f32 * self.generator_multiplier();
 
             query!(
                 "UPDATE share
@@ -117,8 +160,9 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                 CreateEmbed::new()
                     .colour(Colour::from_rgb(231, 41, 57))
                     .title(format!(
-                        "You have {}🩸 shares! (+{}🩸/hr)",
-                        shares.shares, shares.generators
+                        "You have {:.3}🩸 shares! (+{:.3}🩸/hr)",
+                        shares.shares,
+                        (shares.generators as f32 * shares.generator_multiplier())
                     ))
                     .field(
                         "Next 🩸Shares Collection",
@@ -136,7 +180,13 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                     .field("🏭Generators", shares.generators.to_string(), true)
                     .field(
                         "Next 🏭Generator Cost",
-                        shares.next_generator_cost().to_string(),
+                        format!("{:.3}", shares.next_generator_cost()),
+                        true,
+                    )
+                    .field("🔄Prestige", shares.prestige_count.to_string(), true)
+                    .field(
+                        "🩸Shares to 🔄Prestige",
+                        shares.next_prestige_cost().to_string(),
                         true,
                     ),
             )
@@ -149,6 +199,14 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                     .label("Buy Generator")
                     .emoji('🏭')
                     .disabled(!shares.can_buy_generator()),
+                CreateButton::new(PRESTIGE_BUTTON)
+                    .label("Prestige")
+                    .emoji('🔄')
+                    .disabled(!shares.can_prestige()),
+                CreateButton::new("perk_shop:0")
+                    .label("Perk Shop")
+                    .emoji('➕')
+                    .disabled(shares.prestige_count < 1),
             ])]),
     )
     .await?;
@@ -183,11 +241,12 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<()> {
             .unwrap_or(user.name);
         fields.push((
             format!(
-                "{}. {} | {}🩸 | {}🏭",
+                "{}. {} | {}🩸 | {}🏭 | {}🔄",
                 i + 1,
                 user_name,
                 shares.shares,
-                shares.generators
+                shares.generators,
+                shares.prestige_count
             ),
             String::new(),
             false,
@@ -221,7 +280,11 @@ pub async fn on_collect(
 
     if shares.can_collect()? {
         shares.collection_time = Some(Utc::now());
-        shares.shares += 1.0;
+        shares.shares += if shares.perks[PERKS.electric_love()] {
+            10. * shares.generators as f32
+        } else {
+            1.
+        };
         query!(
             "UPDATE share
                 SET (shares, collection_time) = ($1, $2)
@@ -301,6 +364,116 @@ pub async fn on_buy_generator(
                 EditInteractionResponse::new().content(format!(
                     "You cannot afford another generator right now. \
                     You have {}🩸 shares and your next generator costs {}🩸.",
+                    shares.shares, cost
+                )),
+            )
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub async fn on_prestige(
+    framework_ctx: FrameworkContext<'_>,
+    ctx: &SerenityContext,
+    interaction: &ComponentInteraction,
+) -> Result<()> {
+    let postgres = framework_ctx.user_data.postgres.clone();
+
+    interaction.defer_ephemeral(&ctx.http).await?;
+
+    let mut shares = Shares::fetch_one(interaction.user.id.get().try_into()?, &postgres).await?;
+    shares.update(&postgres).await?;
+
+    let cost = shares.next_prestige_cost();
+    if shares.shares >= cost {
+        interaction
+            .edit_response(
+                &ctx.http,
+                EditInteractionResponse::new()
+                    .content(format!(
+                        "Are you sure you want to prestige?\n\
+                    Your shares will be reset to 0🩸.\n\
+                    Your generators will be reset to 0🏭.\n\
+                    You will reach Prestige {}.\n\
+                    You will gain 1 prestige point, making your total {}.",
+                        shares.prestige_count + 1,
+                        shares.prestige_points + 1
+                    ))
+                    .components(vec![CreateActionRow::Buttons(vec![CreateButton::new(
+                        PRESTIGE_CONFIRM_BUTTON,
+                    )
+                    .emoji('✔')
+                    .style(ButtonStyle::Success)])]),
+            )
+            .await?;
+    } else {
+        interaction
+            .edit_response(
+                &ctx.http,
+                EditInteractionResponse::new().content(format!(
+                    "You do not have enough 🩸shares to perform a prestige reset. \
+                    You have {}🩸 shares and your next prestige costs {}🩸.",
+                    shares.shares, cost
+                )),
+            )
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub async fn on_prestige_confirm(
+    framework_ctx: FrameworkContext<'_>,
+    ctx: &SerenityContext,
+    interaction: &ComponentInteraction,
+) -> Result<()> {
+    let postgres = framework_ctx.user_data.postgres.clone();
+
+    interaction.defer_ephemeral(&ctx.http).await?;
+
+    let mut shares = Shares::fetch_one(interaction.user.id.get().try_into()?, &postgres).await?;
+    shares.update(&postgres).await?;
+
+    let cost = shares.next_prestige_cost();
+    if shares.shares >= cost {
+        shares.shares = 0.;
+        shares.generators = 0;
+        shares.collection_time = None;
+        shares.generation_time = Utc::now();
+        shares.prestige_count += 1;
+        shares.prestige_points += 1;
+        query!(
+            "UPDATE share
+                SET (shares, generators, collection_time, generation_time, prestige_count, prestige_points) = ($2, $3, $4, $5, $6, $7)
+                WHERE user_id = $1",
+            shares.user_id,
+            shares.shares,
+            shares.generators,
+            shares.collection_time,
+            shares.generation_time,
+            shares.prestige_count,
+            shares.prestige_points
+        )
+        .execute(&postgres)
+        .await?;
+        interaction
+            .edit_response(
+                &ctx.http,
+                EditInteractionResponse::new().content(format!(
+                    "Your sacrifice is accepted. You are now on Prestige {}.\n\
+                    You now have {} prestige points.",
+                    shares.prestige_count, shares.prestige_points
+                )),
+            )
+            .await?;
+    } else {
+        interaction
+            .edit_response(
+                &ctx.http,
+                EditInteractionResponse::new().content(format!(
+                    "You do not have enough 🩸shares to perform a prestige reset. \
+                    You have {}🩸 shares and your next prestige costs {}🩸.",
                     shares.shares, cost
                 )),
             )
