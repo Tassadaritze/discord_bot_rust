@@ -8,8 +8,8 @@ use log::error;
 use poise::PrefixFrameworkOptions;
 use reqwest::{Client as Reqwest, ClientBuilder as ReqwestBuilder};
 use serenity::prelude::*;
-use sqlx::sqlite::SqlitePoolOptions;
-use sqlx::SqlitePool;
+use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 
 use crate::markov::Markov;
 
@@ -27,7 +27,7 @@ pub struct Data {
     markov: Arc<Markov>,
     markov_loop_running: AtomicBool,
     reqwest: Reqwest,
-    sqlite: SqlitePool,
+    postgres: PgPool,
 }
 
 impl Deref for DataWrapper {
@@ -85,9 +85,8 @@ async fn main() -> Result<()> {
                     markov: Arc::new(Markov::new(2, "message-dump.txt", true)),
                     markov_loop_running: AtomicBool::new(false),
                     reqwest: ReqwestBuilder::new().pool_max_idle_per_host(1).build()?,
-                    sqlite: SqlitePoolOptions::new()
-                        .max_connections(1)
-                        .connect("sqlite:sqlite3.db")
+                    postgres: PgPoolOptions::new()
+                        .connect(&env::var("DATABASE_URL")?)
                         .await?,
                 })))
             })
