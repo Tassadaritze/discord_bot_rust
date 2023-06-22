@@ -280,7 +280,7 @@ pub async fn on_collect(
 
     if shares.can_collect()? {
         shares.collection_time = Some(Utc::now());
-        shares.shares += if shares.perks[PERKS.electric_love()] {
+        shares.shares += if shares.perks[PERKS.electric_love()] && shares.generators > 0 {
             10. * shares.generators as f32
         } else {
             1.
