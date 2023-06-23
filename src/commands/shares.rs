@@ -160,7 +160,7 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                 CreateEmbed::new()
                     .colour(Colour::from_rgb(231, 41, 57))
                     .title(format!(
-                        "You have {:.3}🩸 shares! (+{:.3}🩸/hr)",
+                        "You have {:.2}🩸 shares! (+{:.2}🩸/hr)",
                         shares.shares,
                         (shares.generators as f32 * shares.generator_multiplier())
                     ))
@@ -180,7 +180,7 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                     .field("🏭Generators", shares.generators.to_string(), true)
                     .field(
                         "Next 🏭Generator Cost",
-                        format!("{:.3}", shares.next_generator_cost()),
+                        format!("{:.2}", shares.next_generator_cost()),
                         true,
                     )
                     .field("🔄Prestige", shares.prestige_count.to_string(), true)
@@ -241,7 +241,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<()> {
             .unwrap_or(user.name);
         fields.push((
             format!(
-                "{}. {} | {:.3}🩸 | {}🏭 | {}🔄",
+                "{}. {} | {:.2}🩸 | {}🏭 | {}🔄",
                 i + 1,
                 user_name,
                 shares.shares,
@@ -299,7 +299,7 @@ pub async fn on_collect(
             .edit_response(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
-                    "Shares collected! You now have {}🩸 shares.",
+                    "Shares collected! You now have {:.2}🩸 shares.",
                     shares.shares
                 )),
             )
@@ -352,7 +352,7 @@ pub async fn on_buy_generator(
             .edit_response(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
-                    "Generator purchased! You now have {}🩸 shares.",
+                    "Generator purchased! You now have {:.2}🩸 shares.",
                     shares.shares
                 )),
             )
@@ -363,7 +363,7 @@ pub async fn on_buy_generator(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
                     "You cannot afford another generator right now. \
-                    You have {}🩸 shares and your next generator costs {}🩸.",
+                    You have {:.2}🩸 shares and your next generator costs {:.2}🩸.",
                     shares.shares, cost
                 )),
             )
@@ -413,7 +413,7 @@ pub async fn on_prestige(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
                     "You do not have enough 🩸shares to perform a prestige reset. \
-                    You have {}🩸 shares and your next prestige costs {}🩸.",
+                    You have {:.2}🩸 shares and your next prestige costs {}🩸.",
                     shares.shares, cost
                 )),
             )
@@ -473,7 +473,7 @@ pub async fn on_prestige_confirm(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
                     "You do not have enough 🩸shares to perform a prestige reset. \
-                    You have {}🩸 shares and your next prestige costs {}🩸.",
+                    You have {:.2}🩸 shares and your next prestige costs {}🩸.",
                     shares.shares, cost
                 )),
             )
