@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use crate::error::handle_error;
 use anyhow::{Error, Result};
 use log::error;
 use poise::PrefixFrameworkOptions;
@@ -14,6 +15,7 @@ use sqlx::PgPool;
 use crate::markov::Markov;
 
 mod commands;
+mod error;
 mod events;
 mod markov;
 
@@ -59,16 +61,8 @@ async fn main() -> Result<()> {
             listener: |event, ctx, _| Box::pin(events::handle(ctx, event)),
             on_error: |e| {
                 Box::pin(async move {
-                    error!("on_error: {:?}", e);
-                    if let Some(ctx) = e.ctx() {
-                        if ctx.framework().options.commands.contains(ctx.command()) {
-                            if let Err(e) = ctx
-                                .say("An error occurred while executing this command.")
-                                .await
-                            {
-                                error!("could not reply in on_error: {e}");
-                            };
-                        }
+                    if let Err(e) = handle_error(e).await {
+                        error!("on_error: {:?}", e);
                     }
                 })
             },

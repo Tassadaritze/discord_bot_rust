@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::env;
+use std::fmt::{Debug, Display, Formatter};
 
-use anyhow::{Error, Result};
+use anyhow::{anyhow, bail, Result};
 use poise::CreateReply;
 use serde::Deserialize;
 use serenity::all::CreateAttachment;
@@ -25,22 +26,22 @@ pub async fn gelbooru(
 
     ctx.defer().await?;
 
-    let posts = reqwest
-        .get(api.url())
-        .send()
-        .await?
-        .json::<Response>()
-        .await?;
+    let response = reqwest.get(api.url()).send().await?;
+    let posts = if let Ok(posts) = response.json::<Response>().await {
+        posts
+    } else {
+        bail!(GelbooruError::NoPosts);
+    };
 
     let post = posts
         .post
         .get(0)
-        .ok_or_else(|| Error::msg("couldn't get post"))?;
+        .ok_or_else(|| anyhow!(GelbooruError::NoPosts))?;
 
     let res = reqwest.get(&post.file_url).send().await?;
     if let Some(len) = res.content_length() {
         if len > _25_MIB {
-            return Err(Error::msg("post too large"));
+            bail!(GelbooruError::PostTooLarge);
         }
     }
 
@@ -122,3 +123,20 @@ impl<'a> PostsAPI<'a> {
         url
     }
 }
+
+#[derive(Debug)]
+pub enum GelbooruError {
+    NoPosts,
+    PostTooLarge,
+}
+
+impl Display for GelbooruError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoPosts => write!(f, "Gelbooru did not return any posts."),
+            Self::PostTooLarge => write!(f, "Found Gelbooru post size is above 25 MiB."),
+        }
+    }
+}
+
+impl std::error::Error for GelbooruError {}

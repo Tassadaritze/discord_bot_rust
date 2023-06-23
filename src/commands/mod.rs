@@ -13,7 +13,7 @@ use shares::shares;
 #[path = "8ball.rs"]
 mod _8ball;
 mod aon;
-mod gelbooru;
+pub mod gelbooru;
 mod ping;
 mod register;
 mod roll;
