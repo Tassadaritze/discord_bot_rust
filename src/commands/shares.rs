@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use poise::CreateReply;
 use serenity::all::Context as SerenityContext;
@@ -160,9 +160,9 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                 CreateEmbed::new()
                     .colour(Colour::from_rgb(231, 41, 57))
                     .title(format!(
-                        "You have {:.2}🩸 shares! (+{:.2}🩸/hr)",
-                        shares.shares,
-                        (shares.generators as f32 * shares.generator_multiplier())
+                        "You have {}🩸 shares! (+{}🩸/hr)",
+                        num_format(shares.shares)?,
+                        num_format(shares.generators as f32 * shares.generator_multiplier())?
                     ))
                     .field(
                         "Next 🩸Shares Collection",
@@ -180,7 +180,7 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                     .field("🏭Generators", shares.generators.to_string(), true)
                     .field(
                         "Next 🏭Generator Cost",
-                        format!("{:.2}", shares.next_generator_cost()),
+                        num_format(shares.next_generator_cost())?,
                         true,
                     )
                     .field("🔄Prestige", shares.prestige_count.to_string(), true)
@@ -241,10 +241,10 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<()> {
             .unwrap_or(user.name);
         fields.push((
             format!(
-                "{}. {} | {:.2}🩸 | {}🏭 | {}🔄",
+                "{}. {} | {}🩸 | {}🏭 | {}🔄",
                 i + 1,
                 user_name,
-                shares.shares,
+                num_format(shares.shares)?,
                 shares.generators,
                 shares.prestige_count
             ),
@@ -299,8 +299,8 @@ pub async fn on_collect(
             .edit_response(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
-                    "Shares collected! You now have {:.2}🩸 shares.",
-                    shares.shares
+                    "Shares collected! You now have {}🩸 shares.",
+                    num_format(shares.shares)?
                 )),
             )
             .await?;
@@ -352,8 +352,8 @@ pub async fn on_buy_generator(
             .edit_response(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
-                    "Generator purchased! You now have {:.2}🩸 shares.",
-                    shares.shares
+                    "Generator purchased! You now have {}🩸 shares.",
+                    num_format(shares.shares)?
                 )),
             )
             .await?;
@@ -363,8 +363,9 @@ pub async fn on_buy_generator(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
                     "You cannot afford another generator right now. \
-                    You have {:.2}🩸 shares and your next generator costs {:.2}🩸.",
-                    shares.shares, cost
+                    You have {}🩸 shares and your next generator costs {}🩸.",
+                    num_format(shares.shares)?,
+                    num_format(cost)?
                 )),
             )
             .await?;
@@ -413,8 +414,9 @@ pub async fn on_prestige(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
                     "You do not have enough 🩸shares to perform a prestige reset. \
-                    You have {:.2}🩸 shares and your next prestige costs {}🩸.",
-                    shares.shares, cost
+                    You have {}🩸 shares and your next prestige costs {}🩸.",
+                    num_format(shares.shares)?,
+                    cost
                 )),
             )
             .await?;
@@ -473,12 +475,31 @@ pub async fn on_prestige_confirm(
                 &ctx.http,
                 EditInteractionResponse::new().content(format!(
                     "You do not have enough 🩸shares to perform a prestige reset. \
-                    You have {:.2}🩸 shares and your next prestige costs {}🩸.",
-                    shares.shares, cost
+                    You have {}🩸 shares and your next prestige costs {}🩸.",
+                    num_format(shares.shares)?,
+                    cost
                 )),
             )
             .await?;
     }
 
     Ok(())
+}
+
+fn num_format(f: f32) -> Result<String> {
+    let formatted = format!("{:.2}", f);
+    let (whole, decimal) = formatted
+        .split_once('.')
+        .ok_or_else(|| anyhow!("couldn't split"))?;
+    let mut num = whole
+        .as_bytes()
+        .rchunks(3)
+        .rev()
+        .map(std::str::from_utf8)
+        .collect::<Result<Vec<&str>, _>>()?
+        .join(" ");
+    num.push(',');
+    num.push_str(decimal);
+
+    Ok(num)
 }
