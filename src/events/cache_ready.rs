@@ -33,14 +33,19 @@ pub async fn handle(
                         match result {
                             Ok(message) => {
                                 if message.author.id != cache.current_user().id {
-                                    let generated_message = markov.generate_string().await;
-                                    MARKOV_CHANNEL
-                                        .send_message(
-                                            &http,
-                                            CreateMessage::new().content(generated_message),
-                                        )
-                                        .await
-                                        .expect("couldn't send message");
+                                    loop {
+                                        let generated_message = markov.generate_string().await;
+                                        if generated_message.len() < 2000 {
+                                            MARKOV_CHANNEL
+                                                .send_message(
+                                                    &http,
+                                                    CreateMessage::new().content(generated_message),
+                                                )
+                                                .await
+                                                .expect("couldn't send message");
+                                            break;
+                                        }
+                                    }
                                 }
                             }
                             Err(err) => error!("error getting message: {err}"),
