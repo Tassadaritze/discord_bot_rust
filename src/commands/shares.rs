@@ -186,7 +186,7 @@ pub async fn get(ctx: Context<'_>) -> Result<()> {
                     .field("🔄Prestige", shares.prestige_count.to_string(), true)
                     .field(
                         "🩸Shares to 🔄Prestige",
-                        shares.next_prestige_cost().to_string(),
+                        num_format(shares.next_prestige_cost())?,
                         true,
                     ),
             )
