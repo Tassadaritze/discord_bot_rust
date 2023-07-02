@@ -21,6 +21,9 @@ pub async fn handle_error(e: FrameworkError<'_, DataWrapper, Error>) -> Result<(
                 };
             }
         }
+        FrameworkError::Setup { error, .. } => {
+            bail!(error);
+        }
         _ => bail!("unhandled error"),
     }
 
