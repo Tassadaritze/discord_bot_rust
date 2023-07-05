@@ -17,14 +17,14 @@ pub async fn handle_error(e: FrameworkError<'_, DataWrapper, Error>) -> Result<(
                     }
                 };
                 if let Err(e) = ctx.say(response).await {
-                    error!("could not reply in on_error: {e}");
+                    error!("could not reply in handle_error: {e}");
                 };
             }
         }
         FrameworkError::Setup { error, .. } => {
             bail!(error);
         }
-        _ => bail!("unhandled error"),
+        _ => error!("handle_error: {:?}", e),
     }
 
     Ok(())
