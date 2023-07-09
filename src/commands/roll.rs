@@ -338,3 +338,73 @@ pub fn eval(input: Vec<Token>) -> Result<String> {
     ensure!(stack.len() == 1);
     Ok(stack[0].to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use super::{eval, shunt};
+
+    #[test]
+    fn implied_one() -> Result<()> {
+        assert!((1..=20).contains(&eval(shunt("d20")?)?.parse::<u32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn keep_highest() -> Result<()> {
+        assert!((2..=40).contains(&eval(shunt("3d20kh2")?)?.parse::<u32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn keep_lowest() -> Result<()> {
+        assert!((3..=60).contains(&eval(shunt("4d20kl3")?)?.parse::<u32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn addition() -> Result<()> {
+        assert!((6..=25).contains(&eval(shunt("d20 + 5")?)?.parse::<u32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn subtraction() -> Result<()> {
+        assert!((-4..=15).contains(&eval(shunt("d20 - 5")?)?.parse::<i32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn multiplication() -> Result<()> {
+        assert!((5..=100).contains(&eval(shunt("d20 * 5")?)?.parse::<u32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn division() -> Result<()> {
+        assert!((0.2..=4.).contains(&eval(shunt("d20 / 5")?)?.parse::<f32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn precedence() -> Result<()> {
+        assert!(
+            (7.2..=26.2).contains(&eval(shunt("1 + 2 * 3 - 4 / 5 + 2d20kh1")?)?.parse::<f32>()?)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parens() -> Result<()> {
+        assert!((0.4..=20.4)
+            .contains(&eval(shunt("(1 + 2) * (3 - 4) / 5 + 2d20kh1")?)?.parse::<f32>()?));
+        Ok(())
+    }
+
+    #[test]
+    fn computed_dice() -> Result<()> {
+        assert!((3..=60).contains(&eval(shunt("(1 + 2)d((12 - 2) * 2)")?)?.parse::<u32>()?));
+        Ok(())
+    }
+}
