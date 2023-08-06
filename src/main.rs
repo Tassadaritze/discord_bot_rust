@@ -53,7 +53,8 @@ async fn main() -> Result<()> {
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILDS
-        | GatewayIntents::GUILD_SCHEDULED_EVENTS;
+        | GatewayIntents::GUILD_SCHEDULED_EVENTS
+        | GatewayIntents::GUILD_VOICE_STATES;
 
     let framework = poise::Framework::new(
         poise::FrameworkOptions {

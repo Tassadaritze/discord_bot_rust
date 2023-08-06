@@ -10,6 +10,7 @@ mod guild_scheduled_event_update;
 mod interaction_create;
 mod message;
 mod ready;
+mod voice_state_update;
 
 const EVENT_REPORT_CHANNEL: ChannelId = ChannelId::new(924343631761006592);
 
@@ -36,6 +37,9 @@ pub async fn handle(framework_ctx: FrameworkContext<'_>, event: &FullEvent) -> R
         }
         FullEvent::InteractionCreate { ctx, interaction } => {
             interaction_create::handle(framework_ctx, ctx, interaction).await
+        }
+        FullEvent::VoiceStateUpdate { ctx, old, new } => {
+            voice_state_update::handle(framework_ctx, ctx, old, new).await
         }
         _ => Ok(()),
     }
